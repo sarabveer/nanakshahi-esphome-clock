@@ -1,0 +1,224 @@
+substitutions:
+  name: esp-clock
+
+esphome:
+  name: ${name}
+  includes:
+    - include/MoonPhase.h
+    - include/MoonPhase.cpp
+    - include/Nanakshahi.h
+    - include/Nanakshahi.cpp
+    - include/FormatTime.h
+    - include/FormatTime.cpp
+  on_boot:
+    then:
+      # read the RTC time once when the system boots
+      - ds1307.read_time:
+          id: ds3231
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# https://esphome.io/components/wifi.html
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  fast_connect: true
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ${name}
+    password: !secret backup_password
+
+# https://esphome.io/components/web_server.html
+web_server:
+  port: 80
+
+api:
+logger:
+ota:
+captive_portal:
+
+sun:
+  latitude: !secret latitude
+  longitude: !secret longitude
+  id: sun_sun
+
+i2c:
+  sda: 21
+  scl: 22
+  frequency: 400kHz
+
+spi:
+  clk_pin: 16
+  mosi_pin: 23
+
+font:
+  - file: "gfonts://Roboto Mono@500"
+    id: roboto_64
+    size: 64
+    glyphs: |
+      ,0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz
+  - file: "gfonts://Roboto Mono@500"
+    id: roboto_24
+    size: 24
+    glyphs: |
+      ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz
+  - file: "gfonts://Roboto Mono@600"
+    id: time_128
+    size: 128
+    glyphs: |
+      : 0123456789AMP
+  - file: "gfonts://Roboto Mono@500"
+    id: time_40
+    size: 40
+    glyphs: |
+      : 0123456789AMP
+  - file: "font/materialdesignicons-webfont.ttf"
+    id: mdi_sun
+    size: 48
+    glyphs: [
+      "\U000F059C",
+      "\U000F059B"
+    ]
+  - file: "font/materialdesignicons-webfont.ttf"
+    id: mdi_moon
+    size: 88
+    glyphs: [
+      "\U000F0F64",
+      "\U000F0F67",
+      "\U000F0F61",
+      "\U000F0F68",
+      "\U000F0F62",
+      "\U000F0F66",
+      "\U000F0F63",
+      "\U000F0F65"
+    ]
+  - file: "font/OpenGurbaniAkhar-Bold.ttf"
+    id: font_guru
+    size: 72
+    glyphs: |
+      . 0123456789ABDGIKMNPSTUVY`bcdghjklmnopqrsuvwxy
+
+display:
+  - platform: waveshare_epaper
+    id: screen
+    cs_pin: 17
+    dc_pin: 5
+    busy_pin: 18
+    reset_pin: 19
+    model: 7.50inv2
+    update_interval: never
+    reset_duration: 2ms
+    rotation: 90
+    lambda: |-
+#      it.printf(0,0,id(font_guru),"");
+#      auto date = id(ds3231).now();
+#      it.strftime(430, 0, id(time_40), "%p", date);
+#      it.printf(40, 0, id(time_128), "%s", FormatTime(date, false, false, true).c_str());
+#      it.filled_rectangle(0, 180, 480, 5);
+#      std::string monthNames[12] = { "cyq", "vYswK", "jyT", "hwV", "swvx", "BwdoN", "A`sU", "k`qk", "m`Gr", "poh", "mwG", "P`gx" };
+#      std::string dayNames[7] = { "AYqvwr", "somvwr", "mMglvwr", "bu`Dvwr", "vIrvwr", "Su`krvwr", "SnIvwr" };
+#      it.printf(0, 200, id(font_guru), "%s", dayNames[ date.day_of_week - 1 ].c_str() );
+#      it.printf(0, 285, id(font_guru), "%.0f %s %.0f", id(ns_date).state, monthNames[ (((int)id(ns_month).state)+11) % 12 ].c_str(), id(ns_year).state);
+#      it.printf(0, 370, id(roboto_64), "%s %s %s", date.strftime("%b").c_str(), to_string(date.day_of_month).c_str(), to_string(date.year).c_str());
+#      it.filled_rectangle(0, 470, 480, 5);
+#      it.print(0, 485, id(mdi_sun), "\U000F059C");
+#      it.printf(56, 480, id(time_40), "%s", FormatTime( id(sun_sun).sunrise( -0.833 ).value() ).c_str());
+#      it.print(0, 545, id(mdi_sun), "\U000F059B");
+#      it.printf(56, 540, id(time_40), "%s", FormatTime( id(sun_sun).sunset( -0.833 ).value() ).c_str());
+#      it.filled_rectangle(238, 475, 5, 125);
+#      MoonPhase mp;
+#      mp.calculate( date.timestamp );
+#      std::string moonPhases[8] = { "\U000F0F64", "\U000F0F67", "\U000F0F61", "\U000F0F68", "\U000F0F62", "\U000F0F66", "\U000F0F63", "\U000F0F65"};
+#      it.printf(320, 475, id(mdi_moon), "%s", moonPhases[mp.phaseVal].c_str());
+#      it.printf(255, 560, id(roboto_24), "%s", mp.phaseName);
+#      it.filled_rectangle(0, 600, 480, 5);
+
+time:
+  - platform: ds1307
+    id: ds3231
+    # repeated synchronization is not necessary unless the external RTC
+    # is much more accurate than the internal clock
+    update_interval: never
+    on_time:
+      - seconds: 0
+        minutes: 0
+        hours: 0
+        then:
+          lambda: |-
+            int * nsDate = Nanakshahi( id(ds3231).now() );
+            id(ns_year).publish_state(nsDate[0]);
+            id(ns_month).publish_state(nsDate[1]);
+            id(ns_date).publish_state(nsDate[2]);
+      - seconds: 0
+        then:
+          - component.update: screen
+
+  - platform: sntp
+    # instead try to synchronize via network repeatedly ...
+    id: sntp_time
+    timezone: America/New_York
+    servers:
+      - time.sarabveer.com
+      - us.pool.ntp.org
+    update_interval: 1h
+    on_time_sync:
+      then:
+        # ... and update the RTC when the synchronization was successful
+        - ds1307.write_time:
+            id: ds3231
+
+# Example configuration entry
+sensor:
+  - platform: template
+    name: ${name} Nanakshahi Year
+    id: ns_year
+    update_interval: 1h
+    accuracy_decimals: 0
+    lambda: |-
+      int * nsDate = Nanakshahi( id(ds3231).now() );
+      return nsDate[0];
+  - platform: template
+    name: ${name} Nanakshahi Month
+    id: ns_month
+    update_interval: 1h
+    accuracy_decimals: 0
+    lambda: |-
+      int * nsDate = Nanakshahi( id(ds3231).now() );
+      return nsDate[1];
+  - platform: template
+    name: ${name} Nanakshahi Date
+    id: ns_date
+    update_interval: 1h
+    accuracy_decimals: 0
+    lambda: |-
+      int * nsDate = Nanakshahi( id(ds3231).now() );
+      return nsDate[2];
+
+text_sensor:
+  - platform: template
+    id: time_now
+    update_interval: 1s
+    lambda: |-
+      return { id(ds3231).now().strftime("%X") };
+
+button:
+  - platform: safe_mode
+    name: ${name} Safe Mode Boot
+    entity_category: diagnostic
+  - platform: template
+    name: ${name} Update Display
+    on_press:
+      - component.update: screen
+  - platform: template
+    name: ${name} NTP Sync
+    on_press:
+      - component.update: sntp_time
+
+switch:
+  # https://esphome.io/components/switch/restart.html
+  - platform: restart
+    name: ${name} Restart

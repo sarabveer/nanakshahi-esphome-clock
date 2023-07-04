@@ -1,2 +1,3 @@
 # nanakshahi-esphome-clock
-ESPHome E-Paper clock
+
+ESPHome E-Paper Clock
